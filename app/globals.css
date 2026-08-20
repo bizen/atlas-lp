@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-playfair: "Playfair Display", serif;
+  --font-shippori: "Shippori Mincho", serif;
+  --font-zen: "Zen Kaku Gothic New", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #fafcff;
+  color: #0a1a2f;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #cfeafb;
+  color: #0a1a2f;
+}
+
+/* Cartographic hairline grid used behind sections */
+.atlas-grid {
+  background-image:
+    linear-gradient(to right, rgba(30, 111, 224, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 111, 224, 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Focus visibility for keyboard users */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #1e6fe0;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-drift,
+  .animate-pulseFaint {
+    animation: none !important;
+  }
+}
