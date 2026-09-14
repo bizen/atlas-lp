@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-playfair: "Playfair Display", serif;
-  --font-shippori: "Shippori Mincho", serif;
-  --font-zen: "Zen Kaku Gothic New", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
-}
-
 html {
   scroll-behavior: smooth;
 }
@@ -16,7 +9,6 @@ html {
 body {
   background-color: #fafcff;
   color: #0a1a2f;
-  -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
@@ -33,10 +25,6 @@ body {
   background-size: 64px 64px;
 }
 
-.text-balance {
-  text-wrap: balance;
-}
-
 /* Focus visibility for keyboard users */
 a:focus-visible,
 button:focus-visible {
@@ -48,9 +36,5 @@ button:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-  .animate-drift,
-  .animate-pulseFaint {
-    animation: none !important;
   }
 }

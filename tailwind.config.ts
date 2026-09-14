@@ -16,7 +16,6 @@ const config: Config = {
         cyan: "#4CC9F0",
         mist: "#E7F1FC",
         line: "#D6E4F2",
-        stone: "#ECE7DE",
       },
       fontFamily: {
         display: ["var(--font-playfair)", "var(--font-shippori)", "serif"],
@@ -29,20 +28,6 @@ const config: Config = {
       },
       maxWidth: {
         page: "1200px",
-      },
-      keyframes: {
-        drift: {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
-        pulseFaint: {
-          "0%, 100%": { opacity: "0.35" },
-          "50%": { opacity: "0.9" },
-        },
-      },
-      animation: {
-        drift: "drift 7s ease-in-out infinite",
-        pulseFaint: "pulseFaint 4s ease-in-out infinite",
       },
     },
   },
