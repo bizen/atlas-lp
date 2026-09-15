@@ -4,6 +4,7 @@ const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -16,12 +17,23 @@ const config: Config = {
         cyan: "#4CC9F0",
         mist: "#E7F1FC",
         line: "#D6E4F2",
+        // Landing page and Open Atlas. `open` marks unresolved questions; `verified` machine-checked facts.
+        ax: {
+          paper: "#F6F7F9",
+          ink: "#111318",
+          muted: "#5C6370",
+          rule: "#E2E5EA",
+          open: "#1E6FE0",
+          verified: "#15803D",
+        },
       },
       fontFamily: {
         display: ["var(--font-playfair)", "var(--font-shippori)", "serif"],
         serifjp: ["var(--font-shippori)", "serif"],
         sans: ["var(--font-zen)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        plexjp: ["var(--font-plexjp)", "system-ui", "sans-serif"],
+        jbmono: ["var(--font-jbmono)", "ui-monospace", "monospace"],
       },
       letterSpacing: {
         label: "0.28em",

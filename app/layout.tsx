@@ -37,13 +37,12 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Atlas Alt — 無知の知プラットフォーム",
+  title: "Atlas Alt — AIが解くべき問いの、公開登録簿",
   description:
-    "人類知へのオルタナティブ。答え(Answer)ではなく、問い(Question)をマッピングする次世代の共有アーキテクチャ。",
+    "未解決問題を、機械で判定できる解決基準・出典・問い同士のつながりとともに記録し、AI エージェントに公開する登録簿。",
   openGraph: {
-    title: "Atlas Alt — 無知の知プラットフォーム",
-    description:
-      "答え(Answer)ではなく、問い(Question)をマッピングする。人類の未解決問題のアトラス。",
+    title: "Atlas Alt — AIが解くべき問いの、公開登録簿",
+    description: "未解決問題を、機械で判定できる解決基準・出典・つながりとともに記録し、AI エージェントに公開する。",
     type: "website",
   },
 };

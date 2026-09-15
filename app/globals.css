@@ -17,14 +17,6 @@ body {
   color: #0a1a2f;
 }
 
-/* Cartographic hairline grid used behind sections */
-.atlas-grid {
-  background-image:
-    linear-gradient(to right, rgba(30, 111, 224, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 111, 224, 0.05) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-
 /* Focus visibility for keyboard users */
 a:focus-visible,
 button:focus-visible {
