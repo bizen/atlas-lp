@@ -22,8 +22,14 @@ const STRENGTH_LABELS: Record<string, string> = {
 };
 
 const date = (unix?: number) => (unix ? new Date(unix * 1000).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) : "—");
-const isUrl = (s: string) => /^https?:\/\//.test(s);
-const sourceHref = (identifier: string) => identifier.replace(/^(https:\/\/github\.com\/[^@]+)@/, "$1/tree/");
+// Sources are cited the way the literature cites them: a DOI, an arXiv id, a repo at a commit, or,
+// for papers older than any of those, a plain bibliographic reference. Only the first three resolve.
+const sourceHref = (identifier: string) => {
+  if (/^doi:/i.test(identifier)) return `https://doi.org/${identifier.slice(4)}`;
+  if (/^arxiv:/i.test(identifier)) return `https://arxiv.org/abs/${identifier.slice(6)}`;
+  if (/^https?:\/\//.test(identifier)) return identifier.replace(/^(https:\/\/github\.com\/[^@]+)@/, "$1/tree/");
+  return undefined;
+};
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const q = await getQuestion(decodeURIComponent(params.id));
@@ -45,10 +51,10 @@ function Sources({ items }: { items: Question["provenance"] }) {
       {items.map((p) => (
         <li key={p.identifier + p.locator} className="min-w-0">
           <span className="mr-2 font-jbmono text-[12px] text-ax-muted">{p.source_type}</span>
-          {isUrl(p.identifier) ? (
+          {sourceHref(p.identifier) ? (
             <a href={sourceHref(p.identifier)} className="break-all font-jbmono text-[13px] underline underline-offset-4 hover:opacity-70">{p.identifier}</a>
           ) : (
-            <span className="break-all font-jbmono text-[13px]">{p.identifier}</span>
+            <span className="break-all text-[13px]">{p.identifier}</span>
           )}
           {p.locator && <span className="mt-0.5 block text-[13px] text-ax-muted">{p.locator}</span>}
         </li>
