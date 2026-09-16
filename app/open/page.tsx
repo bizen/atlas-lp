@@ -2,7 +2,7 @@ import { ATTAINMENT_LABELS, FLAG_LABELS, isSettled, searchQuestions, STATUS_LABE
 
 type Params = { q?: string; status?: string; domain?: string; flag?: string; attainment?: string; cursor?: string };
 
-const DEFAULT_STATUS = "Screened";
+const DEFAULT_STATUS = "Validated";
 
 const STATUS_NOTES: Record<string, string> = {
   Screened: "形式・安全性・重複の確認を通過し、人類審査を待っている問いです。論文でいうプレプリントにあたります。",
