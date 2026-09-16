@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { ArrowRight, Check } from "lucide-react";
-import { FLAG_LABELS, getNeighbors, getQuestion, isOpen, STATUS_LABELS, UNRESOLVED } from "@/lib/atlas";
+import { ATTAINMENT_LABELS, FLAG_LABELS, getNeighbors, getQuestion, isSettled, KIND_LABELS, STATUS_LABELS, UNRESOLVED } from "@/lib/atlas";
 import { mono, plex } from "@/lib/fonts";
 import CopyCommand from "./CopyCommand";
+import Wordmark from "./Wordmark";
 
 // Landing page. Every question shown is live data from the public MCP endpoint.
 // Colors are the `ax` tokens in tailwind.config.ts; the wavy underline marks unresolved questions.
@@ -14,10 +15,6 @@ const MCP_COMMAND = `claude mcp add --transport http atlas ${process.env.NEXT_PU
 
 const monoCls = "font-jbmono";
 
-const date = (unix: number) => new Date(unix * 1000).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" });
-const sourceName = (p: { source_type: string; identifier: string; locator?: string }) =>
-  p.source_type === "repository" ? p.identifier.replace(/^https:\/\/github\.com\//, "").replace(/@.*$/, "") : p.locator ?? p.identifier;
-const sourceHref = (identifier: string) => identifier.replace(/^(https:\/\/github\.com\/[^@]+)@/, "$1/tree/");
 
 function Section({ id, title, lead, className = "", children }: { id: string; title: string; lead?: string; className?: string; children: React.ReactNode }) {
   return (
@@ -31,18 +28,14 @@ function Section({ id, title, lead, className = "", children }: { id: string; ti
 
 export default async function Home() {
   const [q, graph] = await Promise.all([getQuestion(FEATURED), getNeighbors(FEATURED)]);
-  // Questions whose resolution would also settle this one, and that are still open.
+  // Questions whose resolution would also settle this one, and that nothing has settled yet.
   const remaining = (graph?.nodes ?? []).filter((n) =>
-    isOpen(n.status) && graph!.edges.some((e) => e.type === "implies" && e.source === n.id && e.target === q?.id));
-  const hasLean = q?.resolution?.evidence.some((e) => /lean/i.test(`${e.identifier} ${e.locator ?? ""}`));
+    !isSettled(n.attainment) && graph!.edges.some((e) => e.type === "implies" && e.source === n.id && e.target === q?.id));
 
   return (
     <div className={`${plex.variable} ${mono.variable} min-h-[100svh] bg-ax-paper font-plexjp text-ax-ink antialiased`}>
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
-        <a href="/" className="flex items-baseline gap-1.5">
-          <span className="font-display text-lg tracking-tight">Atlas</span>
-          <span className="font-mono text-[11px] uppercase tracking-label text-ax-open">Alt</span>
-        </a>
+      <header className="group mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
+        <Wordmark />
         <nav className="flex items-center gap-6 text-[14px] text-ax-muted">
           <a href="#entry-anatomy" className="hidden hover:text-ax-ink sm:inline">仕組み</a>
           <a href="#roadmap" className="hidden hover:text-ax-ink sm:inline">これから</a>
@@ -60,8 +53,8 @@ export default async function Home() {
             公開登録簿。
           </h1>
           <p className="mt-8 max-w-2xl text-[17px] leading-[1.9] text-ax-muted">
-            答えを出すコストは下がり続けています。足りないのは、何をもって「解決」とするかが明確な問いです。
-            Atlas は未解決問題を、機械で判定できる解決基準・出典・問い同士のつながりとともに記録し、AI エージェントに公開します。
+            答えを出すコストは下がり続けています。足りないのは、その答えを誰がどう確かめるのかという記録です。
+            Atlas は未解決の問いを、それを解きうるアプローチ・それぞれの判定者・すでに閉じている道とともに記録し、AI エージェントに公開します。
           </p>
         </section>
 
@@ -74,7 +67,7 @@ export default async function Home() {
             </div>
             <div className="px-5 py-8 sm:px-8 sm:py-10">
               <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium">
-                <span>{STATUS_LABELS[q.status] ?? q.status}</span>
+                <span>{STATUS_LABELS[q.curation_status] ?? q.curation_status}</span>
                 {q.flags.map((f) => (
                   <span key={f} className="rounded-full border border-ax-rule px-2 py-0.5 text-[12px] text-ax-muted">{FLAG_LABELS[f] ?? f}</span>
                 ))}
@@ -84,27 +77,24 @@ export default async function Home() {
               </h2>
 
               <div className="mt-8 grid gap-8 border-t border-ax-rule pt-6 text-[14px] sm:grid-cols-2">
-                {q.resolution && (
-                  <div className="min-w-0">
-                    <p className="text-[12px] text-ax-muted">解決の記録 · {date(q.resolution.resolved_at)}</p>
-                    {hasLean && (
-                      <p className="mt-2 flex items-center gap-1.5 text-ax-verified">
-                        <Check size={15} strokeWidth={2.5} /> Lean 4 の証明が公開済み
-                      </p>
-                    )}
-                    <ul className={`mt-3 space-y-1.5 text-[13px] ${monoCls}`}>
-                      {q.resolution.evidence.map((e) => (
-                        <li key={e.identifier} className="truncate">
-                          <a href={sourceHref(e.identifier)} className="underline underline-offset-4 hover:opacity-70">{sourceName(e)}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <p className="text-[12px] text-ax-muted">アプローチ · {q.approaches.length} 件</p>
+                  <ul className="mt-3 space-y-3">
+                    {q.approaches.map((a) => (
+                      <li key={a.id} className="leading-[1.8]">
+                        <span className="font-medium">{KIND_LABELS[a.kind] ?? a.kind}</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[13px] text-ax-muted">
+                          {a.attainment.state === "adjudicated_resolved" && <Check size={14} strokeWidth={2.5} className="text-ax-verified" />}
+                          {ATTAINMENT_LABELS[a.attainment.state] ?? a.attainment.state} · 判定者: {a.adjudicator}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 {remaining.length > 0 && (
                   <div>
                     <p className="text-[12px] text-ax-muted">まだ解けていない問い</p>
-                    <ul className="mt-2 space-y-3 leading-[1.8]">
+                    <ul className="mt-3 space-y-3 leading-[1.8]">
                       {remaining.map((n) => (
                         <li key={n.id}>
                           <a href={`/open/q/${n.slug}`} className={`${UNRESOLVED} hover:opacity-70`}>{n.title_i18n?.ja ?? n.title}</a>

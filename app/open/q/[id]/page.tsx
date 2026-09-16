@@ -1,27 +1,25 @@
 import type { Metadata } from "next";
-import { Check } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-import { FLAG_LABELS, getNeighbors, getQuestion, isOpen, STATUS_LABELS, UNRESOLVED, type Edge, type Question, type Summary } from "@/lib/atlas";
+import {
+  ATTAINMENT_LABELS, BASIS_LABELS, FLAG_LABELS, getNeighbors, getQuestion, isSettled, KIND_LABELS,
+  STATUS_LABELS, UNRESOLVED, type Approach, type Edge, type Question, type Summary,
+} from "@/lib/atlas";
 
 // How each edge reads from this page's question: [when it is the source, when it is the target].
 const EDGE_LABELS: Record<string, [string, string]> = {
   prerequisite: ["解くために先に必要な問い", "この問いを前提とする問い"],
   implies: ["この問いが肯定的に解決すれば、成り立つ問い", "肯定的に解決すれば、この問いも成り立つ問い"],
   specializes: ["この問いを特殊な場合として含む、より一般的な問い", "この問いの特殊な場合"],
-  refines: ["この問いが基準を厳密にした、元の問い", "この問いの基準を厳密にした問い"],
+  refines: ["この問いが範囲を絞った、元の問い", "この問いの範囲を絞った問い"],
   superseded_by: ["この問いを置き換えた問い", "この問いが置き換えた問い"],
   related_to: ["関連する問い", "関連する問い"],
   contradicts: ["両方が肯定的に解決することはない問い", "両方が肯定的に解決することはない問い"],
 };
 
-const CRITERIA_LABELS: Record<string, string> = {
-  Formal_Proof: "形式証明",
-  Deterministic_Code: "決定的なコード",
-  Empirical_Oracle: "実証的な判定",
-  Expert_Consensus: "専門家の合意",
+const STRENGTH_LABELS: Record<string, string> = {
+  equivalent: "問いと同値", weaker: "問いより弱い", stronger: "問いより強い",
+  orthogonal: "問いとずれている", unknown: "強さは未評価",
 };
-
-const VERIFIED_LABELS: Record<string, string> = { automated_suite: "自動検証", human_review: "人類審査", both: "自動検証と人類審査" };
 
 const date = (unix?: number) => (unix ? new Date(unix * 1000).toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }) : "—");
 const isUrl = (s: string) => /^https?:\/\//.test(s);
@@ -59,6 +57,109 @@ function Sources({ items }: { items: Question["provenance"] }) {
   );
 }
 
+function Diff({ label, items }: { label: string; items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="mt-3">
+      <p className="text-[12px] text-ax-muted">{label}</p>
+      <ul className="mt-1 list-disc space-y-1 pl-5 text-[14px] leading-[1.8]">
+        {items.map((t) => <li key={t}>{t}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+/** One approach: who decides, what it changes about the question, how far it got, and what is closed. */
+function ApproachCard({ a }: { a: Approach }) {
+  const diff = a.fidelity_diff;
+  const owesDiff = diff.preserved.length + diff.weakened.length + diff.added.length === 0;
+  return (
+    <li className="rounded-2xl border border-ax-rule bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h3 className="text-[16px] font-bold">{a.name}</h3>
+        <p className="text-[13px] text-ax-muted">{KIND_LABELS[a.kind] ?? a.kind}</p>
+      </div>
+
+      <dl className="mt-4 grid gap-x-6 gap-y-2 text-[14px] sm:grid-cols-[auto,1fr]">
+        <dt className="text-ax-muted">到達状況</dt>
+        <dd className={a.attainment.state === "adjudicated_resolved" ? "text-ax-verified" : ""}>
+          {ATTAINMENT_LABELS[a.attainment.state] ?? a.attainment.state}
+        </dd>
+        <dt className="text-ax-muted">判定者</dt>
+        <dd>{a.adjudicator}<span className="text-ax-muted"> · {BASIS_LABELS[a.adjudication_basis] ?? a.adjudication_basis}</span></dd>
+        {a.formulation && (
+          <>
+            <dt className="text-ax-muted">定式化</dt>
+            <dd>
+              <span className="font-jbmono text-[13px] leading-[1.8]">{a.formulation.text}</span>
+              <span className="mt-1 block text-[13px] text-ax-muted">{STRENGTH_LABELS[a.formulation.strength_relation] ?? a.formulation.strength_relation}</span>
+              {a.formulation.constraints?.formal_framework && (
+                <span className="mt-1 block font-jbmono text-[12px] text-ax-muted">{a.formulation.constraints.formal_framework}</span>
+              )}
+              {a.formulation.verification_endpoint && (
+                <a href={a.formulation.verification_endpoint} className="mt-2 inline-block text-[13px] underline underline-offset-4 hover:opacity-70">
+                  検証対象を見る
+                </a>
+              )}
+            </dd>
+          </>
+        )}
+      </dl>
+
+      {owesDiff ? (
+        <p className="mt-4 rounded-lg bg-ax-paper px-4 py-2.5 text-[13px] leading-relaxed text-ax-muted">
+          差分（このアプローチが問いの何を保ち、何を弱めるか）はまだ書かれていません。人類審査で書きます。
+        </p>
+      ) : (
+        <div className="mt-4 border-t border-ax-rule pt-3">
+          <Diff label="保たれているもの" items={diff.preserved} />
+          <Diff label="弱まっているもの" items={diff.weakened} />
+          <Diff label="加えられた仮定・条件" items={diff.added} />
+          {diff.notes && <p className="mt-3 text-[14px] leading-[1.9] text-ax-muted">{diff.notes}</p>}
+        </div>
+      )}
+
+      {a.known_limits.length > 0 && (
+        <div className="mt-4 border-t border-ax-rule pt-3">
+          <p className="text-[12px] text-ax-muted">閉じた道</p>
+          <ul className="mt-2 space-y-3">
+            {a.known_limits.map((k) => (
+              <li key={k.statement} className="text-[14px] leading-[1.9]">
+                {k.statement}
+                <span className="mt-1 block text-[13px] text-ax-muted">
+                  {k.conditional_on ? `条件つき（${k.conditional_on}）— 前提が崩れれば道は開く` : "無条件"}
+                </span>
+                <Sources items={[k.source]} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {a.attainment.evidence.length > 0 && (
+        <div className="mt-4 border-t border-ax-rule pt-3">
+          <p className="text-[12px] text-ax-muted">証拠</p>
+          <div className="mt-2"><Sources items={a.attainment.evidence} /></div>
+        </div>
+      )}
+
+      {a.attainment.claims.length > 0 && (
+        <div className="mt-4 border-t border-ax-rule pt-3">
+          <p className="text-[12px] text-ax-muted">主張</p>
+          <ul className="mt-2 space-y-1 text-[14px]">
+            {a.attainment.claims.map((c) => (
+              <li key={c.claimant + c.date}>
+                {c.claimant}（{date(c.date)}）
+                <span className="text-ax-muted"> · {c.adjudication_started ? "検証が始まっている" : "検証は未開始"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export default async function QuestionPage({ params }: { params: { id: string } }) {
   const id = decodeURIComponent(params.id);
   const [q, graph] = await Promise.all([getQuestion(id), getNeighbors(id)]);
@@ -77,44 +178,37 @@ export default async function QuestionPage({ params }: { params: { id: string } 
 
   return (
     <article className="max-w-3xl">
-      <a href={`/open?status=${q.status}`} className="text-[13px] text-ax-muted hover:text-ax-ink">← {STATUS_LABELS[q.status] ?? q.status}の問い</a>
+      <a href={`/open?status=${q.curation_status}`} className="text-[13px] text-ax-muted hover:text-ax-ink">
+        ← {STATUS_LABELS[q.curation_status] ?? q.curation_status}の問い
+      </a>
 
       <p className="mt-8 flex flex-wrap items-center gap-2 text-[13px] font-medium">
-        <span>{STATUS_LABELS[q.status] ?? q.status}</span>
+        <span>{STATUS_LABELS[q.curation_status] ?? q.curation_status}</span>
         {q.flags.map((f) => (
-          <a key={f} href={`/open?status=${q.status}&flag=${f}`} className="rounded-full border border-ax-rule px-2 py-0.5 text-[12px] font-normal text-ax-muted hover:text-ax-ink">
+          <a key={f} href={`/open?status=${q.curation_status}&flag=${f}`} className="rounded-full border border-ax-rule px-2 py-0.5 text-[12px] font-normal text-ax-muted hover:text-ax-ink">
             {FLAG_LABELS[f] ?? f}
           </a>
         ))}
       </p>
       <h1 className="mt-3 text-[26px] font-bold leading-[1.7] tracking-[-0.01em] sm:text-[34px]">
-        <span className={isOpen(q.status) ? UNRESOLVED : ""}>{q.title_i18n?.ja ?? q.title}</span>
+        <span className={isSettled(q.approaches.map((a) => a.attainment.state)) ? "" : UNRESOLVED}>
+          {q.title_i18n?.ja ?? q.title}
+        </span>
       </h1>
       {q.title_i18n?.ja && <p className="mt-3 text-[15px] leading-relaxed text-ax-muted">{q.title}</p>}
       <p className="mt-4 flex flex-wrap gap-x-3 gap-y-1 font-jbmono text-[12px] text-ax-muted">
         {q.domain.map((d) => (
-          <a key={d} href={`/open?status=${q.status}&domain=${encodeURIComponent(d)}`} className="hover:text-ax-ink">{d}</a>
+          <a key={d} href={`/open?status=${q.curation_status}&domain=${encodeURIComponent(d)}`} className="hover:text-ax-ink">{d}</a>
         ))}
       </p>
 
-      {q.status === "Screened" && (
+      {q.curation_status === "Screened" && (
         <p className="mt-8 rounded-lg border border-ax-rule bg-white px-4 py-3 text-[14px] leading-relaxed text-ax-muted">
           この問いは形式・安全性・重複の確認を通過し、人類審査を待っています。内容はまだ確定していません。
         </p>
       )}
 
       <div className="mt-10">
-        {q.resolution && (
-          <Section label={`解決の記録 · ${date(q.resolution.resolved_at)} · 確認: ${VERIFIED_LABELS[q.resolution.verified_by] ?? q.resolution.verified_by}`}>
-            {q.resolution.evidence.some((e) => /lean/i.test(`${e.identifier} ${e.locator ?? ""}`)) && (
-              <p className="mb-4 flex items-center gap-1.5 text-[14px] text-ax-verified">
-                <Check size={15} strokeWidth={2.5} /> Lean 4 の証明が公開済み
-              </p>
-            )}
-            {q.resolution.notes && <p className="mb-5 text-[14px] leading-[1.9] text-ax-muted">{q.resolution.notes}</p>}
-            <Sources items={q.resolution.evidence} />
-          </Section>
-        )}
         {q.dissolution && (
           <Section label={`解消の記録 · ${date(q.dissolution.dissolved_at)}`}>
             <p className="text-[14px] leading-[1.9]"><span className="font-jbmono text-[13px]">{q.dissolution.reason}</span> · {q.dissolution.explanation}</p>
@@ -137,19 +231,13 @@ export default async function QuestionPage({ params }: { params: { id: string } 
           </Section>
         )}
 
-        <Section label="解決の基準">
-          <ul className="space-y-3">
-            {q.resolution_criteria.map((c, i) => (
-              <li key={i} className="rounded-2xl border border-ax-rule bg-white p-5 sm:p-6">
-                <p className="text-[13px] font-medium">{CRITERIA_LABELS[c.type] ?? c.type}</p>
-                <p className="mt-2 font-jbmono text-[13px] leading-[1.8] text-ax-muted">{c.specification}</p>
-                {c.verification_endpoint && (
-                  <a href={c.verification_endpoint} className="mt-3 inline-block text-[13px] underline underline-offset-4 hover:opacity-70">
-                    検証対象を見る
-                  </a>
-                )}
-              </li>
-            ))}
+        <Section label={`アプローチ · ${q.approaches.length} 件`}>
+          <p className="mb-4 text-[13px] leading-[1.9] text-ax-muted">
+            解決したかどうかは、問いではなくアプローチごとに決まります。Atlas は判定しません。外部の判定者が何をしたかを記録します。
+            {q.approaches.length < 2 && "　この問いはまだアプローチが1件で、2件そろうまで人類審査を通れません。"}
+          </p>
+          <ul className="space-y-4">
+            {q.approaches.map((a) => <ApproachCard key={a.id} a={a} />)}
           </ul>
         </Section>
 
@@ -162,7 +250,7 @@ export default async function QuestionPage({ params }: { params: { id: string } 
                   <ul className="mt-2 space-y-3">
                     {items.map(({ node, edge }) => (
                       <li key={`${edge.type}-${node.id}`}>
-                        <a href={`/open/q/${node.slug}`} className={`text-[15px] font-medium leading-[1.9] hover:opacity-70 ${isOpen(node.status) ? UNRESOLVED : ""}`}>
+                        <a href={`/open/q/${node.slug}`} className={`text-[15px] font-medium leading-[1.9] hover:opacity-70 ${isSettled(node.attainment) ? "" : UNRESOLVED}`}>
                           {node.title_i18n?.ja ?? node.title}
                         </a>
                         {edge.justification && <p className="mt-1 font-jbmono text-[12px] leading-[1.8] text-ax-muted">根拠: {edge.justification}</p>}
@@ -172,16 +260,6 @@ export default async function QuestionPage({ params }: { params: { id: string } 
                 </div>
               ))}
             </div>
-          </Section>
-        )}
-
-        {(q.constraints.formal_framework || q.constraints.assumptions?.length || q.constraints.resource_bounds) && (
-          <Section label="前提条件">
-            <dl className="space-y-2 text-[14px] leading-[1.8]">
-              {q.constraints.formal_framework && <div><dt className="inline text-ax-muted">形式体系: </dt><dd className="inline font-jbmono text-[13px]">{q.constraints.formal_framework}</dd></div>}
-              {q.constraints.resource_bounds && <div><dt className="inline text-ax-muted">資源の制約: </dt><dd className="inline">{q.constraints.resource_bounds}</dd></div>}
-              {q.constraints.assumptions?.map((a) => <div key={a}><dt className="inline text-ax-muted">仮定: </dt><dd className="inline">{a}</dd></div>)}
-            </dl>
           </Section>
         )}
 
@@ -197,6 +275,7 @@ export default async function QuestionPage({ params }: { params: { id: string } 
             <dt className="text-ax-muted">次回レビュー期限</dt><dd>{date(q.review_due_at)}</dd>
             <dt className="text-ax-muted">版</dt><dd className="break-all">{q.current_revision.slice(0, 12)}</dd>
             <dt className="text-ax-muted">ライセンス</dt><dd>{q.license}</dd>
+            <dt className="text-ax-muted">立場</dt><dd>record_only（Atlas は判定しない）</dd>
           </dl>
         </Section>
       </div>

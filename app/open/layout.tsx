@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { mono, plex } from "@/lib/fonts";
+import Wordmark from "../Wordmark";
 
 export const metadata: Metadata = {
   title: { default: "Open Atlas", template: "%s — Open Atlas" },
@@ -9,12 +10,9 @@ export const metadata: Metadata = {
 export default function OpenLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${plex.variable} ${mono.variable} flex min-h-[100svh] flex-col bg-ax-paper font-plexjp text-ax-ink antialiased`}>
-      <header className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
+      <header className="group mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
         <div className="flex items-baseline gap-3">
-          <a href="/" className="flex items-baseline gap-1.5">
-          <span className="font-display text-lg tracking-tight">Atlas</span>
-          <span className="font-mono text-[11px] uppercase tracking-label text-ax-open">Alt</span>
-        </a>
+          <Wordmark />
           <a href="/open" className="text-[14px] text-ax-muted hover:text-ax-ink">Open Atlas</a>
         </div>
         <form action="/open" className="w-full max-w-xs">
